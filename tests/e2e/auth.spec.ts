@@ -118,7 +118,7 @@ test("registration signs in a named viewer without confirmation or district acce
   ).toBeVisible();
   await expect(page.getByText(/Selamat datang,\s*Siti E2E\./)).toBeVisible();
   await expect(
-    page.getByText("Belum ada wilayah akses.", { exact: false }),
+    page.getByText("Belum ada wilayah akses untuk akun Anda", { exact: false }),
   ).toBeVisible();
   const client = createClient<Database>(
     status.API_URL,
