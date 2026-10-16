@@ -1,9 +1,10 @@
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import { AuthForm } from "@/features/auth/auth-form";
 import { AuthScreen } from "@/features/auth/auth-screen";
 import { getIdentity } from "@/features/auth/session";
 
-export const metadata = { title: "Kata sandi baru" };
+export const metadata: Metadata = { title: "Kata sandi baru" };
 async function RecoverySession() {
   const identity = await getIdentity();
   return identity ? (

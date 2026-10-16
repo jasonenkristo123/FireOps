@@ -59,22 +59,69 @@ describe("server auth actions", () => {
       ).error,
     ).toContain("belum tersedia");
   });
-  it("does not forward privileged signup fields", async () => {
-    auth.signUp.mockResolvedValue({ error: null });
-    const result = await register(
-      {},
-      form({
-        email: "user@example.test",
-        password: "long-test-password",
-        role: "admin",
-      }),
-    );
-    expect(result.success).toContain("menunggu persetujuan");
+  it("creates a session with only validated name metadata and redirects", async () => {
+    auth.signUp.mockResolvedValue({
+      data: { session: { user: {} } },
+      error: null,
+    });
+    await expect(
+      register(
+        {},
+        form({
+          display_name: "  Siti Test  ",
+          email: "user@example.test",
+          password: "long-test-password",
+          role: "admin",
+          status: "active",
+        }),
+      ),
+    ).rejects.toThrow("REDIRECT:/dashboard");
     expect(auth.signUp).toHaveBeenCalledWith({
       email: "user@example.test",
       password: "long-test-password",
-      options: { emailRedirectTo: "http://localhost:3000/auth/callback" },
+      options: { data: { display_name: "Siti Test" } },
     });
+  });
+  it("rejects missing or blank names before contacting Auth", async () => {
+    const result = await register(
+      {},
+      form({
+        display_name: "  ",
+        email: "user@example.test",
+        password: "long-test-password",
+      }),
+    );
+    expect(result.fields?.display_name).toBeDefined();
+    expect(auth.signUp).not.toHaveBeenCalled();
+  });
+  it("reports a configuration mismatch when confirmation is still enabled", async () => {
+    auth.signUp.mockResolvedValue({ data: { session: null }, error: null });
+    const result = await register(
+      {},
+      form({
+        display_name: "Siti",
+        email: "user@example.test",
+        password: "long-test-password",
+      }),
+    );
+    expect(result.error).toContain("menonaktifkan konfirmasi email");
+    expect(result.success).toBeUndefined();
+  });
+  it("does not claim success for provider validation errors", async () => {
+    auth.signUp.mockResolvedValue({
+      data: null,
+      error: { status: 422, message: "private provider detail" },
+    });
+    const result = await register(
+      {},
+      form({
+        display_name: "Siti",
+        email: "user@example.test",
+        password: "long-test-password",
+      }),
+    );
+    expect(result.error).toBeDefined();
+    expect(JSON.stringify(result)).not.toContain("private provider detail");
   });
   it("uses the configured canonical origin for recovery", async () => {
     auth.resetPasswordForEmail.mockResolvedValue({ error: null });

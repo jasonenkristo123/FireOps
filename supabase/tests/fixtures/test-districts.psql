@@ -1,0 +1,9 @@
+-- SYNTHETIC TEST GEOMETRY ONLY. These squares are not West Kalimantan boundaries.
+-- Loaded explicitly by tests; .psql prevents collection as a standalone pgTAP test.
+insert into public.districts(code,province_code,name,geometry,source,license,boundary_version,data_mode)
+values
+  ('TEST-A','TEST','DEMO / Test square A',extensions.st_geomfromtext('MULTIPOLYGON(((0 0,2 0,2 2,0 2,0 0)))',4326),
+   'Synthetic unit square fixture','Synthetic test data only','test-v1','demo'),
+  ('TEST-B','TEST','DEMO / Test square B',extensions.st_geomfromtext('MULTIPOLYGON(((2 0,4 0,4 2,2 2,2 0)))',4326),
+   'Synthetic unit square fixture','Synthetic test data only','test-v1','demo')
+on conflict (code) do nothing;

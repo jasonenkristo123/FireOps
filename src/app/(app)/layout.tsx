@@ -1,9 +1,14 @@
 import { Suspense } from "react";
-import { requireOperationalAccess } from "@/features/auth/session";
+import { requireAccountAccess } from "@/features/auth/session";
+import { Shell } from "@/features/operations/shell";
 
 async function ProtectedLayout({ children }: { children: React.ReactNode }) {
-  await requireOperationalAccess();
-  return children;
+  const { profile, districts } = await requireAccountAccess();
+  return (
+    <Shell profile={profile} districts={districts}>
+      {children}
+    </Shell>
+  );
 }
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (

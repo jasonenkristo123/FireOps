@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { Button } from "@/components/ui/button";
-import { hasOperationalAccess } from "@/features/auth/access";
+import { hasAccountAccess } from "@/features/auth/access";
 import { logout } from "@/features/auth/actions";
 import { AuthScreen } from "@/features/auth/auth-screen";
 import { getAccess } from "@/features/auth/session";
@@ -12,7 +12,7 @@ async function AccountStatus({ searchParams }: PageProps<"/pending">) {
   const params = await searchParams;
   if (
     !access.unavailable &&
-    hasOperationalAccess(access.profile, access.districts) &&
+    hasAccountAccess(access.profile) &&
     params.logout !== "failed"
   )
     redirect("/dashboard");
@@ -23,7 +23,7 @@ async function AccountStatus({ searchParams }: PageProps<"/pending">) {
           ? "Profil akses belum tersedia. Hubungi pengelola atau coba lagi nanti."
           : access.profile.status === "suspended"
             ? "Akses akun dinonaktifkan. Hubungi pengelola."
-            : "Akun belum memiliki persetujuan dan wilayah tugas yang diperlukan. Hubungi pengelola untuk peninjauan."}
+            : "Akun ini masih menggunakan status akses sebelumnya. Hubungi administrator untuk mengatur peran dan wilayah akses."}
       </output>
       {params.logout === "failed" && (
         <p role="alert" className="notice notice-error">
@@ -41,8 +41,8 @@ async function AccountStatus({ searchParams }: PageProps<"/pending">) {
 export default function PendingPage(props: PageProps<"/pending">) {
   return (
     <AuthScreen
-      title="Akses operasional dibatasi"
-      description="Konfirmasi email tidak otomatis memberikan akses ke data insiden."
+      title="Status akun FireOps"
+      description="Administrator mengelola peran dan wilayah akses akun."
     >
       <Suspense fallback={<p>Memeriksa akun…</p>}>
         <AccountStatus {...props} />

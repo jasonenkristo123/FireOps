@@ -9,7 +9,15 @@ export const loginSchema = z.object({
   email,
   password: z.string().min(1, "Masukkan kata sandi.").max(128),
 });
-export const registerSchema = z.object({ email, password });
+export const registerSchema = z.object({
+  display_name: z
+    .string()
+    .trim()
+    .min(1, "Masukkan nama Anda.")
+    .max(100, "Maksimal 100 karakter."),
+  email,
+  password,
+});
 export const recoverySchema = z.object({ email });
 export const resetSchema = z.object({ password });
 export type AuthMode =
@@ -20,7 +28,7 @@ export type AuthMode =
 export type AuthState = {
   error?: string;
   success?: string;
-  fields?: Partial<Record<"email" | "password", string[]>>;
+  fields?: Partial<Record<"display_name" | "email" | "password", string[]>>;
 };
 
 export function callbackDestination(next: string | null) {

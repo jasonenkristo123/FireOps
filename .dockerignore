@@ -1,0 +1,16 @@
+node_modules
+.next
+.git
+.env*
+.agents
+.codex
+.aws
+.vscode
+supabase/.temp
+supabase/.branches
+playwright-report
+test-results
+coverage
+*.tsbuildinfo
+*.pem
+*.log

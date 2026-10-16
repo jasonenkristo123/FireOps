@@ -1,0 +1,25 @@
+name: Manual FIRMS ingestion
+# Intentionally no schedule until the agency approves cadence, source, bbox and quotas.
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: firms-ingestion
+  cancel-in-progress: false
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    environment: operations
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: corepack enable && corepack prepare pnpm@11.28.5 --activate
+      - run: pnpm install --frozen-lockfile
+      - run: node scripts/sync-firms.mjs
+        env:
+          FIREOPS_APP_URL: ${{ vars.FIREOPS_APP_URL }}
+          NASA_FIRMS_SYNC_TOKEN: ${{ secrets.NASA_FIRMS_SYNC_TOKEN }}

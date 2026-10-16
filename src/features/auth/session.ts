@@ -2,7 +2,11 @@ import "server-only";
 import { redirect } from "next/navigation";
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
-import { hasOperationalAccess, profileSchema } from "./access";
+import {
+  hasAccountAccess,
+  hasOperationalAccess,
+  profileSchema,
+} from "./access";
 
 export const getIdentity = cache(async () => {
   try {
@@ -32,7 +36,7 @@ export const getAccess = cache(async () => {
       .single(),
     identity.supabase
       .from("profile_district_grants")
-      .select("district_code")
+      .select("district_code, districts!inner(code)")
       .eq("user_id", identity.userId),
   ]);
   const profile = profileSchema.safeParse(profileResult.data);
@@ -44,6 +48,14 @@ export const getAccess = cache(async () => {
     districts: (grantsResult.data ?? []).map((g) => g.district_code),
   };
 });
+
+export async function requireAccountAccess() {
+  const access = await getAccess();
+  if (!access) redirect("/login");
+  if (access.unavailable || !hasAccountAccess(access.profile))
+    redirect("/pending");
+  return access;
+}
 
 export async function requireOperationalAccess() {
   const access = await getAccess();

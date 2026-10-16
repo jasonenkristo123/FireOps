@@ -46,19 +46,22 @@ export async function register(
   if (!parsed.success) return { fields: parsed.error.flatten().fieldErrors };
   try {
     const supabase = await createClient();
-    const { error } = await supabase.auth.signUp({
-      ...parsed.data,
-      options: { emailRedirectTo: `${authOrigin()}/auth/callback` },
+    const { data, error } = await supabase.auth.signUp({
+      email: parsed.data.email,
+      password: parsed.data.password,
+      // Only the display name is user supplied; database defaults control access.
+      options: { data: { display_name: parsed.data.display_name } },
     });
-    // Same response for an existing account. Never accept role/scope metadata.
-    if (error && error.status !== 422) return authError;
-    return {
-      success:
-        "Jika pendaftaran dapat diproses, tautan konfirmasi dikirim ke email Anda. Akses operasional menunggu persetujuan.",
-    };
+    if (error) return authError;
+    if (!data.session)
+      return {
+        error:
+          "Pendaftaran langsung belum tersedia. Hubungi pengelola untuk menonaktifkan konfirmasi email pada pengaturan akun. Jika sudah memiliki akun, silakan masuk.",
+      };
   } catch {
     return unavailable;
   }
+  redirect("/dashboard");
 }
 
 export async function requestRecovery(

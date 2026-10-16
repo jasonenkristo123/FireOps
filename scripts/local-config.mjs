@@ -38,6 +38,7 @@ export function localAppEnvironment() {
     NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:
       status.PUBLISHABLE_KEY || status.ANON_KEY,
     APP_ORIGIN: "http://localhost:3100",
+    NEXT_PUBLIC_MAP_STYLE_URL: "",
     SUPABASE_SECRET_KEY: "",
     NASA_FIRMS_MAP_KEY: "",
     NASA_FIRMS_SYNC_TOKEN: "",

@@ -1,8 +1,27 @@
 # FireOps
 
 Wildfire hotspot monitoring and human incident coordination for West Kalimantan.
-Phase 1 implements authentication and access control only. No live NASA data,
-operational incidents, approved risk zones or deployment are included yet.
+The functional MVP now includes the map/list dashboard, incident creation and
+human verification, manual priorities, authorized assignments/progress, reports,
+private evidence, timelines, notifications, teams, profiles and administrator-managed roles.
+NASA ingestion is implemented server-side and disabled until configured.
+The dashboard now keeps a West Kalimantan basemap visible for active accounts
+without district grants, with a priority queue beside the map and a 2D fallback.
+The [latest map/workflow implementation](docs/implementation/map-and-workflows.md)
+documents the current hosted data/configuration gaps and optional report summaries.
+Registration uses name/email/password with immediate viewer access; district
+data requires administrator-assigned areas. See the
+[registration setup and tests](docs/runbooks/direct-registration.md) for migration
+007 and the required hosted Auth setting.
+See [local MVP setup](docs/runbooks/mvp-local.md) and the
+[deployment review](docs/runbooks/database-deployment.md). Official geography,
+operational policy approval and remote rollout remain pending.
+
+The [local completion and deployment package](docs/runbooks/release-package.md)
+adds report-based incident creation, documented team-base distances, background
+notifications, paginated observations, scoped district rendering and admin
+health/audit screens. Standalone Node/Docker packaging and CI/manual scheduler
+workflows are included; no hosted rollout or operational schedule is enabled.
 
 Read `AGENTS.md`, `START-HERE.md`, `FIREOPS_MASTER_SPEC.md` and
 `IMPLEMENTATION_CHECKLIST.md` before making changes. The source PDF referenced by
@@ -13,7 +32,8 @@ Use Node 22, pnpm and Docker. Follow the
 [local setup and test runbook](docs/runbooks/local-foundation.md), including the
 isolated test server on port 3100. Do not overwrite an existing `.env.local` or
 apply migrations to a hosted project without reviewing the target and obtaining
-authorization. `.env.example` contains variable names and placeholders only.
+authorization. The owner-configured `.env.local` is the configuration source;
+required variable names are documented in the deployment runbook.
 
 Use **pnpm** for project dependencies and scripts; `package.json` pins pnpm
 11.28.5. Keep `pnpm-lock.yaml` as the only dependency lockfile. Use `pnpm exec`
@@ -34,7 +54,6 @@ pnpm test:e2e
 Installed Codex guidance, including UI UX Pro Max, is recorded in
 [skills provenance](docs/architecture/skills.md).
 
-Satellite observations never constitute automatic fire confirmation. Future
-ingestion must run server-side and preserve source provenance and separate
+Satellite observations never constitute automatic fire confirmation. Ingestion runs server-side and must preserve source provenance and separate
 observation/incident records. Operational verification requires an authorized
 human and immutable reason/actor/time history.

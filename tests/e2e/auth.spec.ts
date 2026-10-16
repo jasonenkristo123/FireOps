@@ -1,5 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { type APIRequestContext, expect, test } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
@@ -13,6 +14,12 @@ const admin = createClient(
   { auth: { persistSession: false } },
 );
 const password = "Local-test-password-2026";
+
+test.beforeAll(() => {
+  localFixtureSql(
+    readFileSync("supabase/tests/fixtures/test-districts.psql", "utf8"),
+  );
+});
 
 async function emailVerificationLink(
   request: APIRequestContext,
@@ -85,60 +92,155 @@ test("unauthenticated dashboard and recovery form are guarded", async ({
   await expect(page.getByLabel("Kata sandi baru")).toHaveCount(0);
 });
 
-test("register creates pending profile and login cannot reach operations", async ({
+test("registration signs in a named viewer without confirmation or district access", async ({
   page,
-  request,
 }) => {
   const email = `e2e-${randomUUID()}@example.test`;
+  await page.setViewportSize({ width: 375, height: 812 });
   await page.goto("/register");
+  await expect(page.getByLabel("Nama", { exact: true })).toBeVisible();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
+  await page.screenshot({
+    path: "test-results/register-mobile.png",
+    fullPage: true,
+  });
+  await page.getByLabel("Nama", { exact: true }).fill("Siti E2E");
   await page.getByLabel("Email", { exact: true }).fill(email);
   await page.getByLabel("Kata sandi", { exact: true }).fill(password);
-  await page.getByRole("button", { name: "Ajukan pendaftaran" }).click();
-  await expect(page.getByRole("status")).toContainText("menunggu persetujuan");
-  // Local Auth admin is only a fixture driver; the app never uses this identity.
-  const { data } = await admin.auth.admin.listUsers();
-  const user = data.users.find((entry) => entry.email === email);
-  expect(Boolean(user)).toBe(true);
-  if (!user) throw new Error("Local signup fixture missing");
+  await page.getByRole("button", { name: "Daftar akun", exact: true }).click();
+  await expect(page).toHaveURL(/\/dashboard$/);
+  await expect(
+    page.getByRole("heading", { name: "Selamat datang di FireOps, Siti E2E" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Belum ada wilayah akses.", { exact: false }),
+  ).toBeVisible();
   const client = createClient<Database>(
     status.API_URL,
     status.PUBLISHABLE_KEY || status.ANON_KEY,
     { auth: { persistSession: false } },
   );
-  const beforeConfirm = await client.auth.signInWithPassword({
+  const { data, error } = await client.auth.signInWithPassword({
     email,
     password,
   });
-  expect(Boolean(beforeConfirm.error)).toBe(true);
-  await page.goto(await emailVerificationLink(request, email));
-  await expect(page).toHaveURL(/\/pending$/);
-  const { error: loginError } = await client.auth.signInWithPassword({
-    email,
-    password,
-  });
-  expect(loginError).toBeNull();
+  expect(error).toBeNull();
   const { data: profile } = await client
     .from("profiles")
-    .select("role,status")
+    .select("display_name,role,status")
     .single();
-  expect(profile).toEqual({ role: "pending", status: "pending" });
+  expect(profile).toEqual({
+    display_name: "Siti E2E",
+    role: "viewer",
+    status: "active",
+  });
   const escalation = await client
     .from("profiles")
     .update({ role: "admin" })
-    .eq("id", user.id);
+    .eq("id", data.user?.id ?? "");
   expect(Boolean(escalation.error)).toBe(true);
-  await page.goto("/login");
+  for (const table of [
+    "incidents",
+    "hotspot_observations",
+    "profile_district_grants",
+  ] as const) {
+    const result = await client.from(table).select("*");
+    expect(result.error).toBeNull();
+    expect(result.data).toEqual([]);
+  }
+  await page.getByRole("link", { name: "Lihat profil" }).click();
+  await expect(page.getByLabel("Nama tampilan")).toHaveValue("Siti E2E");
+  await page.getByLabel("Nama tampilan").fill("Siti Updated");
+  await page.getByRole("button", { name: "Simpan profil" }).click();
+  await expect(page.getByRole("status")).toContainText("Profil diperbarui");
+  await page.getByRole("button", { name: "Keluar", exact: true }).click();
+  await expect(page).toHaveURL(/\/login$/);
+  // A stale confirmation-link warning must not prevent password login.
+  await page.goto("/login?callback=failed");
   await page.getByLabel("Email", { exact: true }).fill(email);
   await page.getByLabel("Kata sandi", { exact: true }).fill(password);
   await page.getByRole("button", { name: "Masuk", exact: true }).click();
-  await expect(page).toHaveURL(/\/pending$/);
-  await expect(page.getByRole("status")).toContainText(
-    "belum memiliki persetujuan",
+  await expect(page).toHaveURL(/\/dashboard$/);
+  await expect(
+    page.getByRole("heading", {
+      name: "Selamat datang di FireOps, Siti Updated",
+    }),
+  ).toBeVisible();
+  await page.setViewportSize({ width: 375, height: 812 });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
+  await page.screenshot({
+    path: "test-results/viewer-welcome-mobile.png",
+    fullPage: true,
+  });
+});
+
+test("administrator can assign a new viewer's role and district", async ({
+  page,
+}) => {
+  const suffix = randomUUID();
+  const adminEmail = `role-admin-${suffix}@example.test`;
+  const targetEmail = `role-target-${suffix}@example.test`;
+  const operator = await admin.auth.admin.createUser({
+    email: adminEmail,
+    password,
+    email_confirm: true,
+  });
+  const target = await admin.auth.admin.createUser({
+    email: targetEmail,
+    password,
+    email_confirm: true,
+    user_metadata: { display_name: "Role assignment test" },
+  });
+  expect(operator.error).toBeNull();
+  expect(target.error).toBeNull();
+  const operatorId = z.uuid().parse(operator.data.user?.id);
+  const targetId = z.uuid().parse(target.data.user?.id);
+  // Local fixture bootstrap; the application never grants its own admin role.
+  localFixtureSql(
+    `update public.profiles set role='admin',status='active' where id='${operatorId}'; insert into public.profile_district_grants(user_id,district_code,granted_by) values('${operatorId}','TEST-A','${operatorId}');`,
   );
-  await page.goto("/dashboard");
-  await expect(page).toHaveURL(/\/pending$/);
-  await page.getByRole("button", { name: "Keluar" }).click();
-  await expect(page).toHaveURL(/\/login$/);
+  await page.goto("/login");
+  await page.getByLabel("Email", { exact: true }).fill(adminEmail);
+  await page.getByLabel("Kata sandi", { exact: true }).fill(password);
+  await page.getByRole("button", { name: "Masuk", exact: true }).click();
+  await expect(page).toHaveURL(/\/dashboard$/);
+  await page.getByRole("link", { name: "Akses akun", exact: true }).click();
+  await page.locator('select[name="target_user_id"]').selectOption(targetId);
+  await page.locator('select[name="new_role"]').selectOption("field_officer");
+  await expect(page.locator('select[name="new_status"]')).toHaveValue("active");
+  await page.locator('input[name="district_codes"][value="TEST-A"]').check();
+  await page
+    .locator('textarea[name="reason"]')
+    .fill("Synthetic role and district assignment test");
+  await page
+    .getByRole("button", { name: "Simpan akses akun", exact: true })
+    .click();
+  await expect(page.getByRole("main").getByRole("status")).toContainText(
+    "Akses akun disimpan dan diaudit",
+  );
+  await page.getByRole("button", { name: "Keluar", exact: true }).click();
+  await page.getByLabel("Email", { exact: true }).fill(targetEmail);
+  await page.getByLabel("Kata sandi", { exact: true }).fill(password);
+  await page.getByRole("button", { name: "Masuk", exact: true }).click();
+  await expect(page).toHaveURL(/\/dashboard$/);
+  await expect(
+    page.getByRole("heading", { name: "Dashboard pemantauan" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Peran: field_officer", { exact: false }),
+  ).toContainText("TEST-A");
+  await page.goto("/admin/users");
+  await expect(
+    page.getByRole("alert").filter({ hasText: "Akses ditolak" }),
+  ).toContainText("hanya untuk administrator");
 });
 
 test("password recovery email, PKCE callback, reset and re-login", async ({
@@ -168,7 +270,7 @@ test("password recovery email, PKCE callback, reset and re-login", async ({
   await page.getByLabel("Email", { exact: true }).fill(email);
   await page.getByLabel("Kata sandi", { exact: true }).fill(`${password}-new`);
   await page.getByRole("button", { name: "Masuk", exact: true }).click();
-  await expect(page).toHaveURL(/\/pending$/);
+  await expect(page).toHaveURL(/\/dashboard$/);
 });
 
 test("approved scoped viewer can enter; revocation applies to the same session", async ({
@@ -191,7 +293,7 @@ test("approved scoped viewer can enter; revocation applies to the same session",
   await page.getByRole("button", { name: "Masuk", exact: true }).click();
   await expect(page).toHaveURL(/\/dashboard$/);
   await expect(
-    page.getByRole("heading", { name: "Ruang kerja petugas" }),
+    page.getByRole("heading", { name: "Dashboard pemantauan" }),
   ).toBeVisible();
   await expect(
     page.getByText("Wilayah tugas:", { exact: false }),

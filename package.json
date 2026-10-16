@@ -14,7 +14,15 @@
     "test:e2e": "playwright test",
     "db:start": "node scripts/start-local.mjs",
     "db:test": "supabase test db --local",
-    "db:types": "supabase gen types typescript --local > src/types/database.types.ts"
+    "db:types": "node scripts/generate-types.mjs",
+    "db:test:migrations": "node scripts/test-migrations.mjs",
+    "db:lint": "supabase db lint --local --schema public,private --level warning --fail-on warning",
+    "demo:setup": "node scripts/demo-setup.mjs",
+    "dev:local": "node scripts/dev-local.mjs",
+    "typecheck:editor": "next typegen && node scripts/check-editor-types.mjs",
+    "db:check": "node scripts/check-supabase.mjs",
+    "db:prepare-hosted": "node scripts/prepare-hosted-schema.mjs",
+    "db:test:hosted-setup": "node scripts/test-migrations.mjs --initial-schema"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",

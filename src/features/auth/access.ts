@@ -8,13 +8,13 @@ export const profileSchema = z.object({
 });
 export type AccessProfile = z.infer<typeof profileSchema>;
 
+export function hasAccountAccess(profile: AccessProfile | null) {
+  return profile?.status === "active" && profile.role !== "pending";
+}
+
 export function hasOperationalAccess(
   profile: AccessProfile | null,
   districtCodes: string[],
 ) {
-  return (
-    profile?.status === "active" &&
-    profile.role !== "pending" &&
-    districtCodes.length > 0
-  );
+  return hasAccountAccess(profile) && districtCodes.length > 0;
 }

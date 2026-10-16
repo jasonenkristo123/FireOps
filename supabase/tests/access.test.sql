@@ -1,12 +1,14 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 select no_plan();
+\ir fixtures/test-districts.psql
 -- Synthetic identities/codes only. Everything rolls back after testing.
 insert into auth.users (id, email, email_confirmed_at, raw_user_meta_data)
 select ('00000000-0000-4000-8000-' || lpad(i::text, 12, '0'))::uuid,
   'rls-' || i || '@example.test', now(), '{"role":"admin","status":"active"}'::jsonb
 from generate_series(1,9) i;
-select is((select count(*)::int from public.profiles where id::text like '00000000-%' and role = 'pending' and status = 'pending'),9,'metadata cannot grant privileges');
+select is((select count(*)::int from public.profiles where id::text like '00000000-%' and role = 'viewer' and status = 'active'),9,'signup defaults to viewer; metadata cannot grant privileges');
+update public.profiles set role='pending',status='pending' where id='00000000-0000-4000-8000-000000000001';
 update public.profiles set role = case right(id::text,1)
   when '2' then 'viewer'::public.user_role when '3' then 'field_officer'::public.user_role
   when '4' then 'coordinator'::public.user_role when '5' then 'admin'::public.user_role
@@ -150,8 +152,8 @@ select throws_ok($$select public.set_account_access(auth.uid(),'admin','active',
 select throws_ok($$select public.set_account_access('00000000-0000-4000-8000-000000000001','viewer','active',array['TEST-A'],'')$$,'22023',null,'approval requires rationale');
 select throws_ok($$select public.set_account_access('00000000-0000-4000-8000-000000000007','viewer','active',array['TEST-A'],'Test approval reason')$$,'22023',null,'unconfirmed account cannot activate');
 select lives_ok($$select public.set_account_access('00000000-0000-4000-8000-000000000001','viewer','active',array['TEST-A','TEST-A'],'Local test approval reason')$$,'admin can approve verified staff');
-select is((select count(*)::int from public.access_audit_logs),1,'approval creates audit event');
-select is((select before_state->>'role' from public.access_audit_logs),'pending','audit preserves previous role');
+select is((select count(*)::int from public.access_audit_logs where actor_id='00000000-0000-4000-8000-000000000005'),1,'approval creates audit event');
+select is((select before_state->>'role' from public.access_audit_logs where actor_id='00000000-0000-4000-8000-000000000005'),'pending','audit preserves previous role');
 select is((select count(*)::int from public.profile_district_grants where user_id='00000000-0000-4000-8000-000000000001'),1,'duplicate grants collapse');
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',true);
 select is((select count(*)::int from public.test_scope_probe),1,'approved staff receive scoped access');

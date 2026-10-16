@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   type AccessProfile,
+  hasAccountAccess,
   hasOperationalAccess,
   profileSchema,
 } from "./access";
@@ -18,6 +19,12 @@ const profile: AccessProfile = {
   status: "active",
 };
 describe("operational access", () => {
+  it("allows the account shell without granting district data", () => {
+    expect(hasAccountAccess(profile)).toBe(true);
+    expect(hasOperationalAccess(profile, [])).toBe(false);
+    expect(hasAccountAccess({ ...profile, status: "suspended" })).toBe(false);
+    expect(hasAccountAccess({ ...profile, role: "pending" })).toBe(false);
+  });
   it.each([
     "viewer",
     "field_officer",
@@ -48,11 +55,13 @@ describe("operational access", () => {
 describe("auth trust boundaries", () => {
   it("validates signup without accepting role or grants", () => {
     const value = registerSchema.parse({
+      display_name: "  Siti  ",
       email: "staff@example.test",
       password: "long-test-password",
       role: "admin",
       district_codes: ["*"],
     });
+    expect(value.display_name).toBe("Siti");
     expect(value).not.toHaveProperty("role");
     expect(value).not.toHaveProperty("district_codes");
     expect(

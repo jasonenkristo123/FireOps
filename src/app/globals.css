@@ -118,3 +118,58 @@ h2 {
   text-wrap: balance;
   overflow-wrap: anywhere;
 }
+
+@layer components {
+  .panel {
+    @apply rounded-xl border bg-card p-4 md:p-5;
+  }
+  label {
+    @apply block text-sm font-medium;
+  }
+  select,
+  textarea,
+  label > input {
+    @apply mt-1 block min-h-11 w-full rounded-md border border-input bg-card px-3 py-2 text-base text-foreground;
+  }
+  textarea {
+    min-height: 96px;
+  }
+  table {
+    @apply w-full text-left text-sm;
+  }
+  th {
+    @apply whitespace-nowrap border-b bg-muted px-3 py-3 font-semibold;
+  }
+  td {
+    @apply border-b px-3 py-4 align-top;
+  }
+  tbody tr:hover {
+    @apply bg-background;
+  }
+  .status-badge {
+    @apply inline-block rounded-md border px-2 py-1 text-xs font-semibold;
+  }
+  .status-critical,
+  .status-confirmed {
+    @apply border-red-300 bg-red-50 text-red-900;
+  }
+  .status-high {
+    @apply border-orange-300 bg-orange-50 text-orange-900;
+  }
+  .status-medium,
+  .status-needs_more_information {
+    @apply border-amber-300 bg-amber-50 text-amber-900;
+  }
+  .status-low {
+    @apply border-sky-300 bg-sky-50 text-sky-900;
+  }
+  .status-unassessed,
+  .status-not_confirmed {
+    @apply bg-slate-100 text-slate-800;
+  }
+  select:focus-visible,
+  textarea:focus-visible {
+    outline: 3px solid var(--ring);
+    outline-offset: 3px;
+  }
+}

@@ -16,7 +16,7 @@ const actions = {
 };
 const labels = {
   login: "Masuk",
-  register: "Ajukan pendaftaran",
+  register: "Daftar akun",
   "forgot-password": "Kirim tautan pemulihan",
   "reset-password": "Simpan kata sandi",
 };
@@ -46,11 +46,38 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
           className="notice notice-error"
         >
           <p>{state.error ?? "Periksa isian berikut."}</p>
+          {state.fields?.display_name && (
+            <a href="#display_name">Periksa nama</a>
+          )}
           {state.fields?.email && <a href="#email">Periksa alamat email</a>}
           {state.fields?.password && <a href="#password">Periksa kata sandi</a>}
         </div>
       )}
       {state.success && <output className="notice">{state.success}</output>}
+      {mode === "register" && (
+        <div className="space-y-2">
+          <label htmlFor="display_name" className="font-medium">
+            Nama
+          </label>
+          <Input
+            id="display_name"
+            name="display_name"
+            autoComplete="name"
+            required
+            maxLength={100}
+            className="h-12 text-base"
+            aria-invalid={Boolean(state.fields?.display_name)}
+            aria-describedby={
+              state.fields?.display_name ? "name-error" : undefined
+            }
+          />
+          {state.fields?.display_name && (
+            <p id="name-error" className="text-sm text-destructive">
+              {state.fields.display_name[0]}
+            </p>
+          )}
+        </div>
+      )}
       {mode !== "reset-password" && (
         <div className="space-y-2">
           <label htmlFor="email" className="font-medium">
