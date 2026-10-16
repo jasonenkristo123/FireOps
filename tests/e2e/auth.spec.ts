@@ -114,8 +114,9 @@ test("registration signs in a named viewer without confirmation or district acce
   await page.getByRole("button", { name: "Daftar akun", exact: true }).click();
   await expect(page).toHaveURL(/\/dashboard$/);
   await expect(
-    page.getByRole("heading", { name: "Selamat datang di FireOps, Siti E2E" }),
+    page.getByRole("heading", { name: "Dashboard pemantauan" }),
   ).toBeVisible();
+  await expect(page.getByText(/Selamat datang,\s*Siti E2E\./)).toBeVisible();
   await expect(
     page.getByText("Belum ada wilayah akses.", { exact: false }),
   ).toBeVisible();
@@ -166,9 +167,7 @@ test("registration signs in a named viewer without confirmation or district acce
   await page.getByRole("button", { name: "Masuk", exact: true }).click();
   await expect(page).toHaveURL(/\/dashboard$/);
   await expect(
-    page.getByRole("heading", {
-      name: "Selamat datang di FireOps, Siti Updated",
-    }),
+    page.getByText(/Selamat datang,\s*Siti Updated\./),
   ).toBeVisible();
   await page.setViewportSize({ width: 375, height: 812 });
   expect(
