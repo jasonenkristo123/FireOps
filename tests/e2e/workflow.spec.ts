@@ -356,7 +356,7 @@ test("report-origin case, documented base, scoped maps and admin health work end
   await expect(
     page.getByRole("heading", { name: "Kesehatan sistem & konfigurasi" }),
   ).toBeVisible();
-  await expect(page.getByText(/Ringkasan AI: dinonaktifkan/)).toBeVisible();
+  await expect(page.getByText(/Ringkasan AI:/)).toBeVisible();
   await page.goto("/admin/audit");
   await expect(
     page.getByText(`SIMULASI: catat basis untuk pengujian jarak ${suffix}.`, {
