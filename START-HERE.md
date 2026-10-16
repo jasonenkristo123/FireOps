@@ -30,10 +30,10 @@ pnpm dlx shadcn@latest init
 pnpm dlx shadcn@latest add button card badge input textarea form select dialog alert-dialog sheet tabs table dropdown-menu tooltip popover command skeleton separator scroll-area sonner
 
 # AI coding skills (skills are not app runtime dependencies):
-npx skills add supabase/agent-skills
-npx skills add vercel-labs/agent-skills --skill vercel-react-best-practices
-npx skills add vercel-labs/agent-skills --skill web-design-guidelines
-npx ui-ux-pro-max-cli init --ai codex   # use cursor/claude/universal if more appropriate
+pnpm dlx skills add supabase/agent-skills
+pnpm dlx skills add vercel-labs/agent-skills --skill vercel-react-best-practices
+pnpm dlx skills add vercel-labs/agent-skills --skill web-design-guidelines
+pnpm dlx ui-ux-pro-max-cli init --ai codex   # use cursor/claude/universal if more appropriate
 
 # Requires Docker:
 pnpm exec supabase init

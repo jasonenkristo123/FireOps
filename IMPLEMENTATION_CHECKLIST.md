@@ -2,34 +2,34 @@
 
 > The AI agent must implement phases sequentially and never mark work complete without evidence.  
 > Legend: `[ ]` pending; `[x]` completed and verified with test evidence.  
-> Initial state: planning document only. No code, dependencies, hosted infrastructure or skills have been installed by this deliverable.
+> Current state (2026-10-16): Phase 1 implemented and verified locally. Phase 0 policy decisions remain open; no hosted infrastructure changes or deployment. Evidence: `docs/validation/phase-1.md`.
 
 ## Phase 0 — Inspect and agree on domain (human + engineer)
 
-- [ ] Inspect current repository / confirm greenfield setup, agent type, Node and pnpm versions.
+- [x] Inspect current repository / confirm greenfield setup, agent type, Node and pnpm versions.
 - [ ] Read source PDF and master spec; capture deviations as ADRs.
 - [ ] Confirm user roles and registration/approval workflow.
 - [ ] Confirm official boundary and district data source/license for West Kalimantan.
 - [ ] Agree data scope (FIRMS sources, date window, cadence, freshness thresholds) and request private MAP_KEY.
 - [ ] Define who can verify, override priority, assign and access evidence.
-- [ ] Confirm red/yellow aggregation scientific rules or explicitly defer zone layer.
-- [ ] Agree priority ruleset inputs/thresholds or explicitly keep `unassessed`.
+- [x] Explicitly defer red/yellow zone layer until agency-approved aggregation rules exist (ADR 0001).
+- [x] Explicitly keep priority `unassessed` until approved inputs/thresholds exist (ADR 0001).
 - [ ] Confirm deployment provider, domain, secrets ownership, retention and operational support.
 
 **Gate:** Unresolved safety-critical decisions remain marked OPEN and cannot be replaced by invented defaults.
 
 ## Phase 1 — Foundation, authentication and access control
 
-- [ ] Scaffold Next.js App Router + TypeScript + Tailwind + ESLint + `src/`; commit lockfile.
-- [ ] Install dependency groups from §6 of master spec and verify package imports.
-- [ ] Install project-local Supabase/React/web design skills and UI UX Pro Max for selected AI agent; inspect installed files.
-- [ ] Initialize shadcn/ui, icons and design tokens; validate responsive layout.
-- [ ] Supabase CLI local project; `.env.example` and gitignore secrets.
-- [ ] Add cookie-aware Supabase browser/server helpers and Next.js session proxy.
-- [ ] Add schema migration for `profiles` and strict role assignment/approval.
-- [ ] Add RLS grant/policy integration tests with separate roles.
-- [ ] Build `/login`, `/register`, recovery and guarded layout.
-- [ ] Verify `pnpm lint`, `pnpm typecheck`, `pnpm build` and initial auth e2e tests.
+- [x] Preserve Next.js App Router + TypeScript + Tailwind + `src/`; include pnpm lockfile. Existing Biome retained instead of ESLint (ADR 0001); changes are uncommitted for review.
+- [x] Install dependency groups from §6 of master spec and verify runtime package imports.
+- [x] Install project-local Supabase/React/web design skills and UI UX Pro Max for Codex; inspect installed files.
+- [x] Initialize scoped shadcn/ui components, icons and design tokens; validate responsive layout.
+- [x] Supabase CLI local project; `.env.example` and gitignore secrets.
+- [x] Add cookie-aware Supabase browser/server helpers and Next.js session proxy.
+- [x] Add schema migrations for `profiles` and strict role assignment/approval (no real admin bootstrap).
+- [x] Add RLS grant/policy integration tests with separate roles (92 pgTAP assertions).
+- [x] Build `/login`, `/register`, recovery and guarded layout.
+- [x] Verify `pnpm lint`, `pnpm typecheck`, `pnpm build`, unit tests and six initial auth e2e tests.
 
 **Gate:** No unapproved user can see incident data or grant themselves privileged roles.
 
