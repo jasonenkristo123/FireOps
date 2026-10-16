@@ -19,6 +19,8 @@
 
 # production
 /build
+/public/maplibre/
+/data/reference/kalbar-big/
 
 # misc
 .DS_Store
@@ -32,6 +34,14 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
+
+# local tooling artifacts
+/playwright-report/
+/test-results/
+/supabase/.temp/
+/supabase/.branches/
+/.agents/skills/**/__pycache__/
 
 # vercel
 .vercel

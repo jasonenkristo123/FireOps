@@ -1,0 +1,30 @@
+name: FireOps validation
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: validation-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH: /usr/bin/google-chrome
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: corepack enable && corepack prepare pnpm@11.28.5 --activate
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint && pnpm typecheck && pnpm test
+      - run: pnpm db:start
+      - run: pnpm exec supabase migration up --local
+      - run: pnpm db:test && pnpm db:lint
+      - run: pnpm test:e2e
+      - name: Stop disposable CI services
+        if: always()
+        run: pnpm exec supabase stop --no-backup

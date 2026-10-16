@@ -1,0 +1,1 @@
+-- Intentionally empty. Phase 1 has no operational or geographic fixtures.

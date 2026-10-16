@@ -321,21 +321,21 @@ Skills teach the *coding agent*, not the running website. They are **not** impor
 
 ```bash
 # Official Supabase skills — authentication, migrations, and platform conventions:
-npx skills add supabase/agent-skills
+pnpm dlx skills add supabase/agent-skills
 
 # Vercel engineering guidance — performance and UI review:
-npx skills add vercel-labs/agent-skills --skill vercel-react-best-practices
-npx skills add vercel-labs/agent-skills --skill web-design-guidelines
+pnpm dlx skills add vercel-labs/agent-skills --skill vercel-react-best-practices
+pnpm dlx skills add vercel-labs/agent-skills --skill web-design-guidelines
 
 # UI UX Pro Max — choose your actual AI agent, NOT all of them:
-npx ui-ux-pro-max-cli init --ai codex
-# or: npx ui-ux-pro-max-cli init --ai cursor
-# or: npx ui-ux-pro-max-cli init --ai claude
-# or: npx ui-ux-pro-max-cli init --ai universal
+pnpm dlx ui-ux-pro-max-cli init --ai codex
+# or: pnpm dlx ui-ux-pro-max-cli init --ai cursor
+# or: pnpm dlx ui-ux-pro-max-cli init --ai claude
+# or: pnpm dlx ui-ux-pro-max-cli init --ai universal
 
 # Optional: discover Next.js workflow skills; only install those relevant
 # to features you adopt (many Next.js conventions are in bundled docs):
-# npx skills add vercel/next.js
+# pnpm dlx skills add vercel/next.js
 ```
 
 Choose one agent target for UI UX Pro Max; the published CLI package is `ui-ux-pro-max-cli`, **not** the older `uipro-cli`. Inspect the selected skills and repository permissions before running third-party scripts. Commit project-local skills if your team wants reproducibility; review skill updates like source dependencies. Run UI/UX skill to propose FireOps tokens and dashboard layout, but this blueprint's safety requirements and approved design system take precedence.
