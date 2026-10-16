@@ -37,7 +37,7 @@ while loading the landing page.
 
 Three synthetic UI markers have generic example identifiers. They contain no
 real observation coordinates, sensor measurements, relative detection timestamps,
-human confirmations, priorities or risk classifications. A persistent caption
+human confirmations, assessed priorities or risk classifications. A persistent caption
 labels the map and points as a visual simulation, separate from operational LIVE
 data. The diagram is not used for jurisdiction, data ingestion or authorization.
 

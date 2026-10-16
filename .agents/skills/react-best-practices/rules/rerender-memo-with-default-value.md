@@ -29,6 +29,7 @@ const UserAvatar = memo(function UserAvatar({ onClick = () => {} }: { onClick?: 
 ```tsx
 const NOOP = () => {};
 
+
 const UserAvatar = memo(function UserAvatar({ onClick = NOOP }: { onClick?: () => void }) {
   // ...
 })
