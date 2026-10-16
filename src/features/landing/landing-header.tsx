@@ -70,7 +70,7 @@ export function LandingHeader({
             aria-expanded={open}
             aria-controls="landing-mobile-navigation"
             aria-label={open ? "Tutup navigasi" : "Buka navigasi"}
-          className="flex size-11 cursor-pointer items-center justify-center rounded-md hover:bg-slate-50 sm:hidden"
+            className="flex size-11 cursor-pointer items-center justify-center rounded-md hover:bg-slate-50 sm:hidden"
           >
             {open ? (
               <X aria-hidden className="size-5" />
