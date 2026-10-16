@@ -80,6 +80,7 @@ test("coordinator and officer complete persistent human-operated workflow", asyn
   await expect(
     page.getByRole("heading", { name: "Dashboard pemantauan" }),
   ).toBeVisible();
+  await page.goto("/dashboard?mode=demo");
   await expect(
     page.getByText("DEMO / DATA SIMULASI", { exact: true }),
   ).toBeVisible();
@@ -333,13 +334,13 @@ test("report-origin case, documented base, scoped maps and admin health work end
   await page.goto("/dashboard?mode=demo&time=all&status=new&view=list");
   await expect(page.getByLabel("Status operasional")).toHaveValue("new");
   await expect(
-    page.getByRole("heading", { name: "Ringkasan wilayah & periode" }),
+    page.getByText("Observasi satelit", { exact: true }),
   ).toBeVisible();
   const bannerBox = await page
     .getByText("DEMO / DATA SIMULASI", { exact: true })
     .boundingBox();
   const summaryBox = await page
-    .getByRole("heading", { name: "Ringkasan wilayah & periode" })
+    .getByText("Observasi satelit", { exact: true })
     .boundingBox();
   expect(bannerBox).not.toBeNull();
   expect(summaryBox).not.toBeNull();
