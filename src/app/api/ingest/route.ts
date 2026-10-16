@@ -1,11 +1,8 @@
 import "server-only";
 import { timingSafeEqual } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
-import {
-  bboxSchema,
-  parseFirms,
-  sourceSchema,
-} from "@/features/operations/firms";
+import { bboxSchema, sourceSchema } from "@/features/operations/firms";
+import { fetchFirms } from "@/features/operations/firms-source";
 import type { Database } from "@/types/database.types";
 export const maxDuration = 120;
 export async function POST(request: Request) {
@@ -60,40 +57,7 @@ export async function POST(request: Request) {
       { status: run.error.code === "55000" ? 409 : 503 },
     );
   try {
-    let response: Response | undefined;
-    for (let attempt = 0; attempt < 2; attempt++) {
-      response = await fetch(
-        `https://firms.modaps.eosdis.nasa.gov/api/area/csv/${encodeURIComponent(key)}/${source.data}/${bbox.data.join(",")}/2`,
-        {
-          cache: "no-store",
-          signal: AbortSignal.timeout(25000),
-          redirect: "error",
-        },
-      );
-      if (response.status < 500 && response.status !== 429) break;
-      if (attempt === 0)
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-    }
-    if (!response?.ok) throw new Error("UPSTREAM_UNAVAILABLE");
-    if (response.headers.get("content-type")?.includes("text/html"))
-      throw new Error("INVALID_CONTENT_TYPE");
-    // Bound the response while streaming, before allocating the complete CSV.
-    const reader = response.body?.getReader();
-    if (!reader) throw new Error("EMPTY_BODY");
-    let size = 0;
-    const chunks: Uint8Array[] = [];
-    while (true) {
-      const part = await reader.read();
-      if (part.done) break;
-      size += part.value.byteLength;
-      if (size > 5000000) {
-        await reader.cancel();
-        throw new Error("PAYLOAD_TOO_LARGE");
-      }
-      chunks.push(part.value);
-    }
-    const csv = Buffer.concat(chunks).toString("utf8");
-    const rows = parseFirms(csv, source.data, bbox.data, now);
+    const { rows } = await fetchFirms(source.data, bbox.data, key);
     const result = await db.rpc("finish_ingestion", {
       run_id: run.data,
       observations: rows,

@@ -1,6 +1,7 @@
 import { requireAccountAccess } from "@/features/auth/session";
 import { ActionForm } from "@/features/operations/action-form";
 import { saveTeam, updateTeamDetails } from "@/features/operations/actions";
+import { DataWarnings } from "@/features/operations/data-warning";
 import { date, label } from "@/features/operations/domain";
 import { createClient } from "@/lib/supabase/server";
 export default async function Page() {
@@ -17,6 +18,13 @@ export default async function Page() {
   return (
     <>
       <h1 className="text-2xl font-bold">Tim & petugas</h1>
+      <DataWarnings
+        warnings={
+          teams.data?.some((t) => typeof t.row_version !== "number")
+            ? [{ feature: "team_settings", reason: "schema" }]
+            : []
+        }
+      />
       <p>
         Tim hanya tampil pada wilayah berizin. Ketersediaan dikelola
         administrator dan divalidasi ulang saat penugasan.
@@ -57,7 +65,7 @@ export default async function Page() {
                   </li>
                 ))}
             </ul>
-            {profile.role === "admin" && (
+            {profile.role === "admin" && typeof t.row_version === "number" && (
               <details className="mt-4">
                 <summary className="cursor-pointer py-3">
                   Edit pengaturan & lokasi basis

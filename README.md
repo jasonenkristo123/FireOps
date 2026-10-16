@@ -9,6 +9,19 @@ The dashboard now keeps a West Kalimantan basemap visible for active accounts
 without district grants, with a priority queue beside the map and a 2D fallback.
 The [latest map/workflow implementation](docs/implementation/map-and-workflows.md)
 documents the current hosted data/configuration gaps and optional report summaries.
+For a missing-worker error or a map with no markers, use the
+[LIVE map setup guide](docs/runbooks/live-map-setup.md). Worker assets are prepared
+automatically by `pnpm dev`/`pnpm build`; `pnpm boundaries:prepare` downloads a
+review-only BIG candidate for the 14 West Kalimantan districts without importing
+or approving it. The map supports optional user-location/manual-coordinate
+straight-line distances, including from outside Kalimantan.
+Verified administrators can open `/admin/observations` and explicitly request
+real NASA markers before catalogue setup. This source preview labels its request
+rectangle and retrieval time; it creates no operational incidents or priorities.
+If pages show “data tidak dapat dimuat”, run `pnpm db:check` to check columns and
+read RPCs as well as tables. The diagnosed missing hosted migration 008 has a
+[specific incremental upgrade guide](docs/runbooks/hosted-upgrade-008.md);
+never rerun the initial installer on an existing schema.
 Registration uses name/email/password with immediate viewer access; district
 data requires administrator-assigned areas. See the
 [registration setup and tests](docs/runbooks/direct-registration.md) for migration

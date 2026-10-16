@@ -8,12 +8,15 @@ import {
 } from "@/features/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import type { ActionState } from "./action-form";
+import { isSchemaMismatch } from "./data-errors";
 import { decisions, priorities, reasonSchema, statuses } from "./domain";
 
 function fail(message: string): ActionState {
   return { error: message };
 }
 function dbError(code: string) {
+  if (isSchemaMismatch({ code }))
+    return "Fitur ini memerlukan pembaruan database. Minta administrator menerapkan pembaruan 008; data sebelumnya tetap tersimpan.";
   return code === "40001"
     ? "Data telah berubah. Muat ulang halaman sebelum menyimpan."
     : code === "42501"

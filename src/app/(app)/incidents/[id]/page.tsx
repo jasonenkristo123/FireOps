@@ -3,8 +3,16 @@ import { z } from "zod";
 import { requireOperationalAccess } from "@/features/auth/session";
 import { ActionForm } from "@/features/operations/action-form";
 import { mutate, uploadEvidence } from "@/features/operations/actions";
+import type { AssignmentCandidate } from "@/features/operations/assignment-picker";
 import { AssignmentPicker } from "@/features/operations/assignment-picker";
 import { ModeBanner, StateBadge } from "@/features/operations/browse-view";
+import {
+  type DataWarning,
+  dataWarning,
+  isSchemaMismatch,
+  logDataFailure,
+} from "@/features/operations/data-errors";
+import { DataWarnings } from "@/features/operations/data-warning";
 import {
   date,
   decisions,
@@ -14,6 +22,7 @@ import {
   type Search,
   transitions,
 } from "@/features/operations/domain";
+import { legacyAssignees } from "@/features/operations/legacy-assignees";
 import { IncidentMap } from "@/features/operations/map-loader";
 import { ReportSummaryPanel } from "@/features/operations/report-summary-panel";
 import { summaryConfiguration } from "@/features/operations/report-summary-service";
@@ -116,12 +125,26 @@ export default async function Page({
       assignments,
       reports,
       evidence,
-      candidates,
-      staff,
     ].some((r) => r.error)
   )
     throw new Error("Detail insiden gagal dimuat");
   const manager = ["coordinator", "admin"].includes(access.profile.role);
+  const warnings: DataWarning[] = [];
+  let eligibleCandidates: AssignmentCandidate[] = candidates.data ?? [];
+  if (candidates.error) {
+    logDataFailure("eligible_assignees", candidates.error);
+    warnings.push(dataWarning("assignment", candidates.error));
+    if (manager && isSchemaMismatch(candidates.error) && !staff.error)
+      eligibleCandidates = await legacyAssignees(
+        i.district_id,
+        i.districts?.code ?? "",
+        staff.data ?? [],
+      );
+  }
+  if (staff.error) {
+    logDataFailure("staff_roster", staff.error);
+    warnings.push(dataWarning("assignment", staff.error));
+  }
   const active = assignments.data?.find((a) => !a.ended_at);
   const writer =
     manager ||
@@ -161,6 +184,7 @@ export default async function Page({
         </div>
       </header>
       <ModeBanner mode={i.data_mode} />
+      <DataWarnings warnings={warnings} />
       <nav aria-label="Bagian detail" className="flex flex-wrap gap-5">
         {[
           ["overview", "Ringkasan"],
@@ -373,7 +397,7 @@ export default async function Page({
         {manager && (
           <ActionForm action={mutate} submit="Tugaskan / alihkan petugas">
             {hidden("assign")}
-            <AssignmentPicker candidates={candidates.data ?? []} />
+            <AssignmentPicker candidates={eligibleCandidates} />
             {reason("Alasan penugasan / pengalihan")}
             <p className="text-sm">
               Server memvalidasi keanggotaan tim, ketersediaan, akun aktif, dan

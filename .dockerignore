@@ -11,6 +11,7 @@ supabase/.branches
 playwright-report
 test-results
 coverage
+data/reference/kalbar-big
 *.tsbuildinfo
 *.pem
 *.log

@@ -3,8 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
+    "dev": "node scripts/prepare-map-assets.mjs && next dev",
+    "build": "node scripts/prepare-map-assets.mjs && next build",
+    "map:prepare": "node scripts/prepare-map-assets.mjs",
+    "boundaries:prepare": "node scripts/prepare-kalbar-boundaries.mjs",
+    "boundaries:package": "node scripts/package-kalbar-import.mjs",
+    "live:configure": "node scripts/configure-live-env.mjs",
     "start": "next start",
     "lint": "biome check",
     "format": "biome format --write",
@@ -22,6 +26,7 @@
     "typecheck:editor": "next typegen && node scripts/check-editor-types.mjs",
     "db:check": "node scripts/check-supabase.mjs",
     "db:prepare-hosted": "node scripts/prepare-hosted-schema.mjs",
+    "db:prepare-upgrade": "node scripts/prepare-completion-upgrade.mjs",
     "db:test:hosted-setup": "node scripts/test-migrations.mjs --initial-schema"
   },
   "dependencies": {

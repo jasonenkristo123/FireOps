@@ -4,7 +4,7 @@ import type { Database } from "@/types/database.types";
 import { date, label } from "./domain";
 
 // PostgreSQL function result metadata does not encode nullable OUT columns.
-type Candidate = Omit<
+export type AssignmentCandidate = Omit<
   Database["public"]["Functions"]["eligible_assignees"]["Returns"][number],
   "distance_to_team_km" | "base_source" | "base_recorded_at"
 > & {
@@ -12,7 +12,11 @@ type Candidate = Omit<
   base_source: string | null;
   base_recorded_at: string | null;
 };
-export function AssignmentPicker({ candidates }: { candidates: Candidate[] }) {
+export function AssignmentPicker({
+  candidates,
+}: {
+  candidates: AssignmentCandidate[];
+}) {
   const [teamId, setTeamId] = useState("");
   const teams = [...new Map(candidates.map((c) => [c.team_id, c])).values()];
   const selected = teams.find((t) => t.team_id === teamId);

@@ -211,3 +211,61 @@ imports, NASA requests, AI requests or privilege changes were made.
 
 Details: `docs/implementation/map-and-workflows.md`. Format/TypeScript checks
 passed; test suites and Playwright were intentionally not run.
+
+
+## Hosted schema mismatch diagnosis — 2026-10-16
+
+- [x] Read-only reproduction: hosted tables and migration-006 revision column exist, but five read-capability checks for 008 fail (`42703` / `PGRST202`). Table existence alone was insufficient.
+- [x] Extend `pnpm db:check` to inspect required columns and read-only RPCs; it correctly exited nonzero for the incomplete hosted schema at diagnosis, and passes after the owner-applied upgrade. No mutation RPC is probed.
+- [x] Prepare guarded transactional `supabase/setup/upgrade-008.sql` offline from canonical migration 008, with prerequisite/rerun/history guards and CLI migration history. No hosted execution claimed.
+- [x] Owner reports applying upgrade 008; subsequent `pnpm db:check` passes all 17 tables and required read RPC/column probes. No hosted migration was executed by the agent.
+- [ ] Accept the new partial-availability handling for lists/statistics/maps, legacy assignment reads, team settings and admin health. Implementation preserves RLS and transactional mutation checks; browser regression remains deferred as requested.
+
+Exact diagnosis and owner steps: `docs/runbooks/hosted-upgrade-008.md`. No reset,
+hosted write, data import, role change, NASA/AI call, test suite or Playwright run
+was performed in this fix.
+
+## Worker and LIVE map setup follow-up — 2026-10-16
+
+- [x] Diagnose MapLibre 6 worker URL resolution from installed source; serve the exact installed worker from a versioned same-origin public path. `pnpm map:prepare` and HTTP verification pass: 200, JavaScript MIME, matching SHA-256.
+- [x] Find and download an official BIG candidate for 14 Kalbar districts with structural validation, source metadata, timestamp and hash. `pnpm boundaries:prepare` succeeds. License, topology and agency review remain open; no import or LIVE approval implied.
+- [ ] Accept worker rendering and immediate worker-error 2D fallback in supported browsers. Implementation compiles; browser checks deferred by owner.
+- [ ] Accept optional browser/manual user-location distances in map popups and the loaded-point table, including an origin outside Kalbar. Implementation uses client-only straight-line calculation; browser checks deferred by owner.
+- [ ] Complete LIVE activation: review/import real geography, grant account districts, approve bbox, configure missing scheduler token, and authorize/validate a first real NASA sync. Current database has no districts, observations or ingest runs; no NASA API failure has been demonstrated.
+
+Evidence and owner instructions: `docs/runbooks/live-map-setup.md`. The existing
+environment and hosted data were preserved. Priority recommendations and risk
+zones retain their previously approved deferred behavior.
+
+## NASA source diagnosis and marker priorities — 2026-10-16
+
+- [x] Execute one bounded read-only NASA request for the BIG-derived candidate extent: HTTP 200, 1,238 parsed observations in the two-date window. Rectangle includes surrounding areas; no confirmed-fire or district count is claimed.
+- [x] Prepare offline approval-gated `review.sql`/`import.sql` packages and a fill-empty-only local NASA env helper. Default `pnpm live:configure` is read-only; no hosted import, approval or env edit was performed.
+- [x] Run actual-source geometry preflight on local temporary PostGIS tables with rollback: 14 valid nonempty MultiPolygons, no interior overlaps. Source license/agency approval remain open.
+- [ ] Accept verified-admin `/admin/observations`: manual cached server retrieval, actual NASA markers/metadata, no operational database writes, no implied district authority. Implementation compiles; browser acceptance remains deferred.
+- [ ] Accept linked-observation manual-priority projection and consistent five-priority marker colors in both renderers. No automatic scoring is introduced; browser acceptance remains deferred.
+
+Scope: `docs/decisions/0005-nasa-source-preview.md`. Current API requests work,
+but hosted operational catalogue/observations/jobs remain empty. Owner reports
+admin access works and has configured the private sync token; server BBOX remains
+empty. Setup remains documented in `docs/runbooks/live-map-setup.md`.
+
+## User-location marker and selected-point connection — 2026-10-16
+
+- [ ] Accept blue browser/manual origin marker, selected-point connecting line, kilometre distance in popup/panel and automatic viewport fitting on MapLibre and 2D fallback. Implementation present; browser acceptance deferred by owner.
+- [ ] Accept keyboard target selection, changing/clearing target, clearing origin, stale-selection rejection, denied geolocation and reduced-motion behavior. Implementation present; browser checks deferred.
+
+This slice changes map components/client geometry and documentation, plus a
+Suspense wrapper around the existing landing-page session read to satisfy Next.js
+Cache Components prerendering. No new package, schema migration, remote data
+write, environment edit, location storage, automatic priority policy or
+route-planning service is introduced. Setup guide now includes the exact
+candidate NASA BBOX env line. Browser acceptance remains deferred.
+
+## Landing-page visual simplification — 2026-10-16
+
+- [ ] Accept the simplified white/slate/red landing page, short hero, coastline illustration, three-step workflow, plain region list and minimal footer. Implementation present; browser acceptance deferred.
+- [ ] Accept responsive navigation and example-marker keyboard/pointer behavior. Implementation present; browser checks deferred.
+
+Source/provenance and compilation evidence: `docs/implementation/landing-refresh.md`.
+No operational-data setup or release gate is marked complete by this visual change.

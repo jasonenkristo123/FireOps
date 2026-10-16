@@ -1,6 +1,7 @@
 import "server-only";
 import { requireAccountAccess } from "@/features/auth/session";
 import { createClient } from "@/lib/supabase/server";
+import { type DataWarning, dataWarning, logDataFailure } from "./data-errors";
 import { boundariesSchema, type Filters } from "./domain";
 export async function browse(f: Filters, onlyMine = false) {
   const access = await requireAccountAccess();
@@ -31,14 +32,14 @@ export async function browse(f: Filters, onlyMine = false) {
       ? db
           .from("hotspot_observations")
           .select(
-            "id,latitude,longitude,detected_at,source,instrument,confidence_raw,confidence_kind,district_id,data_mode, districts!inner(name,code), incident_observations!inner(incidents!inner(verification_status,final_priority,current_status))",
+            "id,latitude,longitude,detected_at,source,instrument,confidence_raw,confidence_kind,district_id,data_mode, districts!inner(name,code), incident_observations!inner(incidents!inner(id,reference,title,verification_status,final_priority,current_status))",
             { count: "exact" },
           )
           .eq("data_mode", f.mode)
       : db
           .from("hotspot_observations")
           .select(
-            "id,latitude,longitude,detected_at,source,instrument,confidence_raw,confidence_kind,district_id,data_mode, districts!inner(name,code)",
+            "id,latitude,longitude,detected_at,source,instrument,confidence_raw,confidence_kind,district_id,data_mode, districts!inner(name,code), incident_observations(incidents(id,reference,title,verification_status,final_priority,current_status))",
             { count: "exact" },
           )
           .eq("data_mode", f.mode);
@@ -100,10 +101,20 @@ export async function browse(f: Filters, onlyMine = false) {
       .select("incident_id")
       .eq("owner_id", access.profile.id)
       .is("ended_at", null);
-    if (mine.error) throw new Error("Penugasan tidak dapat dimuat.");
+    if (mine.error) {
+      logDataFailure("assignments", mine.error);
+      throw new Error("Penugasan tidak dapat dimuat.");
+    }
     const ids = mine.data.map((x) => x.incident_id);
-    cases = cases.in("id", ids);
-    plainCases = plainCases.in("id", ids);
+    if (ids.length) {
+      cases = cases.in("id", ids);
+      plainCases = plainCases.in("id", ids);
+    } else {
+      // An explicit false predicate avoids an empty IN expression or a broad fetch.
+      const empty = "00000000-0000-0000-0000-000000000000";
+      cases = cases.eq("id", empty).neq("id", empty);
+      plainCases = plainCases.eq("id", empty).neq("id", empty);
+    }
   }
   const selected = f.source ? cases : plainCases;
   const [incidents, observations, districts, health, summary, boundaries] =
@@ -131,17 +142,35 @@ export async function browse(f: Filters, onlyMine = false) {
       }),
       db.rpc("district_features", { requested_mode: f.mode }),
     ]);
-  if (
-    incidents.error ||
-    observations.error ||
-    districts.error ||
-    health.error ||
-    summary.error ||
-    boundaries.error
-  )
+  const required = [
+    { stage: "incidents", result: incidents },
+    { stage: "observations", result: observations },
+    { stage: "districts", result: districts },
+  ];
+  const failed = required.find((r) => r.result.error);
+  if (failed) {
+    logDataFailure(failed.stage, failed.result.error);
     throw new Error(
       "Data operasional tidak dapat dimuat. Hubungi administrator untuk memeriksa koneksi dan pembaruan aplikasi.",
     );
+  }
+  const warnings: DataWarning[] = [];
+  if (health.error) {
+    warnings.push(dataWarning("health", health.error));
+    logDataFailure("feed_health", health.error);
+  }
+  if (summary.error) {
+    warnings.push(dataWarning("summary", summary.error));
+    logDataFailure("operations_summary", summary.error);
+  }
+  const parsedBoundaries = boundaries.error
+    ? null
+    : boundariesSchema.safeParse(boundaries.data);
+  if (boundaries.error) {
+    warnings.push(dataWarning("boundaries", boundaries.error));
+    logDataFailure("district_features", boundaries.error);
+  } else if (!parsedBoundaries?.success)
+    warnings.push({ feature: "boundaries", reason: "invalid" });
   return {
     access,
     incidents: incidents.data ?? [],
@@ -149,7 +178,10 @@ export async function browse(f: Filters, onlyMine = false) {
     districts: districts.data ?? [],
     health: health.data ?? [],
     summary: summary.data?.[0],
-    boundaries: boundariesSchema.parse(boundaries.data),
+    boundaries: parsedBoundaries?.success
+      ? parsedBoundaries.data
+      : { type: "FeatureCollection" as const, features: [] },
+    warnings,
     count: incidents.count ?? 0,
     observationCount: observations.count ?? 0,
   };

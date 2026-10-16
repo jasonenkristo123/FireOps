@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireAccountAccess } from "@/features/auth/session";
 import { FiltersForm, ModeBanner, StateBadge } from "./browse-view";
 import { browse } from "./data";
+import { DataWarnings } from "./data-warning";
 import { date, type Filters, filterUrl, label, priorities } from "./domain";
 
 export async function PriorityBoard({ f }: { f: Filters }) {
@@ -21,6 +22,7 @@ export async function PriorityBoard({ f }: { f: Filters }) {
         </Link>
       </header>
       <ModeBanner mode={f.mode} compact />
+      <DataWarnings warnings={data?.warnings ?? []} />
       <p className="rounded-lg border bg-card p-4 text-sm">
         Aturan prioritas instansi belum disetujui: rekomendasi tetap{" "}
         <strong>Belum dinilai</strong>. Koordinator dapat menetapkan prioritas

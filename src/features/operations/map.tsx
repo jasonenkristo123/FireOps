@@ -1,9 +1,16 @@
 "use client";
 import * as maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
+import { version as maplibreVersion } from "maplibre-gl/package.json";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import type { DistrictBoundaries } from "./domain";
+import {
+  connectionCoordinates,
+  connectionGeoJson,
+  distanceLabel,
+  type ReferenceLocation,
+} from "./map-geometry";
 import RasterMap from "./raster-map";
 export type MapPoint = {
   id: string;
@@ -11,31 +18,162 @@ export type MapPoint = {
   longitude: number;
   title: string;
   detail: string;
-  href: string;
+  href?: string;
   kind: string;
   priority: string;
 };
+export type MapInteractionProps = {
+  location: ReferenceLocation | null;
+  selectedPoint: MapPoint | null;
+  onSelectPoint: (point: MapPoint | null) => void;
+};
+
+function updatePointPopup(
+  map: maplibregl.Map,
+  popup: maplibregl.Popup | null,
+  point: MapPoint | null,
+  location: ReferenceLocation | null,
+) {
+  if (!point) {
+    popup?.remove();
+    return null;
+  }
+  const box = document.createElement("div");
+  const title = document.createElement("strong");
+  title.textContent = point.title;
+  const text = document.createElement("p");
+  text.textContent = point.detail;
+  box.append(title, text);
+  if (location) {
+    const distance = document.createElement("p");
+    distance.className = "mt-2 font-semibold text-blue-800";
+    distance.textContent = `Perkiraan jarak lurus dari posisi Anda: ${distanceLabel(location, point)}`;
+    box.append(distance);
+  }
+  if (point.href) {
+    const link = document.createElement("a");
+    link.textContent = "Buka detail";
+    link.href = point.href;
+    box.append(link);
+  }
+  const next =
+    popup ??
+    new maplibregl.Popup({ focusAfterOpen: false, closeOnClick: false });
+  next
+    .setLngLat([point.longitude, point.latitude])
+    .setDOMContent(box)
+    .addTo(map);
+  return next;
+}
+
+function updateConnection(
+  map: maplibregl.Map,
+  marker: maplibregl.Marker | null,
+  location: ReferenceLocation | null,
+  target: MapPoint | null,
+  anchor: { longitude: number; latitude: number },
+) {
+  const source = map.getSource("location-connection") as
+    | maplibregl.GeoJSONSource
+    | undefined;
+  if (source)
+    void source.setData(connectionGeoJson(location, target)).catch(() => {
+      // A style/worker may have been disposed while changing filters or renderer.
+    });
+  if (!location) {
+    marker?.remove();
+    return null;
+  }
+  if (!marker) {
+    const element = document.createElement("button");
+    element.type = "button";
+    element.className =
+      "relative flex size-6 items-center justify-center rounded-full border-[3px] border-white bg-blue-700 shadow-lg";
+    const caption = document.createElement("span");
+    caption.className =
+      "pointer-events-none absolute left-1/2 top-7 -translate-x-1/2 whitespace-nowrap rounded border border-blue-200 bg-white px-2 py-1 text-xs font-semibold text-blue-950 shadow-sm";
+    element.append(caption);
+    marker = new maplibregl.Marker({ element });
+    marker.setLngLat([location.longitude, location.latitude]);
+    marker.setPopup(
+      new maplibregl.Popup().setText(
+        "Lokasi acuan untuk perkiraan jarak lurus. Tidak digunakan untuk menentukan izin wilayah.",
+      ),
+    );
+    marker.addTo(map);
+  }
+  const caption =
+    location.source === "browser" ? "Posisi Anda" : "Acuan manual";
+  marker.getElement().setAttribute("aria-label", caption);
+  const text = marker.getElement().querySelector("span");
+  if (text) text.textContent = caption;
+  marker.setLngLat([location.longitude, location.latitude]);
+  const endpoints = connectionCoordinates(location, target ?? anchor);
+  map.fitBounds(
+    new maplibregl.LngLatBounds().extend(endpoints[0]).extend(endpoints[1]),
+    {
+      padding: { top: 70, bottom: 90, left: 55, right: 55 },
+      maxZoom: 11,
+      duration: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+        ? 0
+        : 450,
+    },
+  );
+  return marker;
+}
 export default function OperationsMap({
   points,
   boundaries,
   districtUrl,
   overview = false,
+  location,
+  selectedPoint,
+  onSelectPoint,
 }: {
   points: MapPoint[];
   boundaries?: DistrictBoundaries;
   districtUrl?: string;
   overview?: boolean;
-}) {
+} & MapInteractionProps) {
   const router = useRouter();
   const container = useRef<HTMLElement>(null);
+  const mapRef = useRef<maplibregl.Map | null>(null);
+  const userMarker = useRef<maplibregl.Marker | null>(null);
+  const pointPopup = useRef<maplibregl.Popup | null>(null);
+  const interaction = useRef({ location, selectedPoint, onSelectPoint });
   const [error, setError] = useState("");
   const [fallback, setFallback] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  useEffect(() => {
+    interaction.current = { location, selectedPoint, onSelectPoint };
+    const map = mapRef.current;
+    if (!map?.getSource("location-connection")) return;
+    const anchor =
+      !overview && points.length === 1
+        ? points[0]
+        : { longitude: 110.3, latitude: -0.1 };
+    userMarker.current = updateConnection(
+      map,
+      userMarker.current,
+      location,
+      selectedPoint,
+      anchor,
+    );
+    pointPopup.current = updatePointPopup(
+      map,
+      pointPopup.current,
+      selectedPoint,
+      location,
+    );
+  }, [location, selectedPoint, onSelectPoint, overview, points]);
   useEffect(() => {
     if (!container.current || fallback) return;
     let map: maplibregl.Map;
     let loadTimeout: ReturnType<typeof setTimeout> | undefined;
     try {
+      maplibregl.setWorkerUrl(
+        `/maplibre/${maplibreVersion}/maplibre-gl-worker.mjs`,
+      );
       const configured = process.env.NEXT_PUBLIC_MAP_STYLE_URL;
       map = new maplibregl.Map({
         container: container.current,
@@ -59,16 +197,48 @@ export default function OperationsMap({
           layers: [{ id: "basemap", type: "raster", source: "osm" }],
         },
       });
+      mapRef.current = map;
       map.addControl(new maplibregl.NavigationControl());
       loadTimeout = setTimeout(() => setFallback(true), 12000);
-      map.on("error", () =>
+      map.on("error", (event) => {
+        if (/worker/i.test(event.error.message)) {
+          clearTimeout(loadTimeout);
+          setFallback(true);
+          return;
+        }
         setError(
           "Sebagian peta gagal dimuat. Gunakan daftar insiden/observasi di bawah.",
-        ),
-      );
+        );
+      });
       map.on("load", () => {
         clearTimeout(loadTimeout);
         setLoaded(true);
+        map.addSource("location-connection", {
+          type: "geojson",
+          data: connectionGeoJson(null, null),
+        });
+        map.addLayer({
+          id: "connection-halo",
+          type: "line",
+          source: "location-connection",
+          filter: ["==", "$type", "LineString"],
+          paint: {
+            "line-color": "#ffffff",
+            "line-width": 7,
+            "line-opacity": 0.9,
+          },
+        });
+        map.addLayer({
+          id: "connection-line",
+          type: "line",
+          source: "location-connection",
+          filter: ["==", "$type", "LineString"],
+          paint: {
+            "line-color": "#1d4ed8",
+            "line-width": 3,
+            "line-dasharray": [3, 2],
+          },
+        });
         if (boundaries?.features.length) {
           map.addSource("districts", { type: "geojson", data: boundaries });
           map.addLayer({
@@ -174,6 +344,37 @@ export default function OperationsMap({
             "circle-stroke-color": "#ffffff",
           },
         });
+        map.addLayer({
+          id: "connection-target",
+          type: "circle",
+          source: "location-connection",
+          filter: ["==", "$type", "Point"],
+          paint: {
+            "circle-radius": 13,
+            "circle-color": "#1d4ed8",
+            "circle-opacity": 0.15,
+            "circle-stroke-width": 3,
+            "circle-stroke-color": "#1d4ed8",
+          },
+        });
+        const current = interaction.current;
+        const anchor =
+          !overview && points.length === 1
+            ? points[0]
+            : { longitude: 110.3, latitude: -0.1 };
+        userMarker.current = updateConnection(
+          map,
+          userMarker.current,
+          current.location,
+          current.selectedPoint,
+          anchor,
+        );
+        pointPopup.current = updatePointPopup(
+          map,
+          pointPopup.current,
+          current.selectedPoint,
+          current.location,
+        );
         map.on("click", "clusters", async (e) => {
           const feature = e.features?.[0];
           if (!feature || feature.geometry.type !== "Point") return;
@@ -195,19 +396,15 @@ export default function OperationsMap({
         map.on("click", "individual", (e) => {
           const p = e.features?.[0]?.properties;
           if (!p) return;
-          const box = document.createElement("div");
-          const title = document.createElement("strong");
-          title.textContent = p.title;
-          const text = document.createElement("p");
-          text.textContent = p.detail;
-          const link = document.createElement("a");
-          link.textContent = "Buka detail";
-          link.href = p.href;
-          box.append(title, text, link);
-          new maplibregl.Popup()
-            .setLngLat(e.lngLat)
-            .setDOMContent(box)
-            .addTo(map);
+          const point = points.find((point) => point.id === p.id);
+          if (!point) return;
+          interaction.current.onSelectPoint(point);
+          pointPopup.current = updatePointPopup(
+            map,
+            pointPopup.current,
+            point,
+            interaction.current.location,
+          );
         });
       });
       const resize = new ResizeObserver(() => map.resize());
@@ -215,10 +412,21 @@ export default function OperationsMap({
       return () => {
         clearTimeout(loadTimeout);
         resize.disconnect();
+        userMarker.current?.remove();
+        userMarker.current = null;
+        pointPopup.current?.remove();
+        pointPopup.current = null;
+        mapRef.current = null;
         map.remove();
       };
     } catch {
       clearTimeout(loadTimeout);
+      userMarker.current?.remove();
+      userMarker.current = null;
+      pointPopup.current?.remove();
+      pointPopup.current = null;
+      mapRef.current?.remove();
+      mapRef.current = null;
       setFallback(true);
       return;
     }
@@ -230,6 +438,9 @@ export default function OperationsMap({
         boundaries={boundaries}
         districtUrl={districtUrl}
         overview={overview}
+        location={location}
+        selectedPoint={selectedPoint}
+        onSelectPoint={onSelectPoint}
       />
     );
   return (

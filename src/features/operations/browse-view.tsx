@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { browse } from "./data";
+import { DataWarnings } from "./data-warning";
 import {
   date,
   decisions,
@@ -11,6 +12,7 @@ import {
   statuses,
 } from "./domain";
 import { IncidentMap } from "./map-loader";
+import { observationMapPoint } from "./observation-map-point";
 export function ModeBanner({
   mode,
   compact = false,
@@ -162,16 +164,7 @@ export async function BrowseView({
   mine?: boolean;
 }) {
   const d = await browse(f, mine);
-  const points = d.observations.map((o) => ({
-    id: o.id,
-    latitude: o.latitude,
-    longitude: o.longitude,
-    title: `Observasi ${o.instrument}`,
-    detail: `${date(o.detected_at)} · Keyakinan ${o.confidence_raw ?? "tidak tersedia"} (${o.confidence_kind ?? "tidak tersedia"})`,
-    href: `/incidents/new?observation=${o.id}`,
-    kind: "observation",
-    priority: "unassessed",
-  }));
+  const points = d.observations.map(observationMapPoint);
   const cases = d.incidents.map((i) => ({
     id: i.id,
     latitude: i.latitude,
@@ -208,6 +201,7 @@ export async function BrowseView({
         )}
       </div>
       <ModeBanner mode={f.mode} />
+      <DataWarnings warnings={d.warnings} />
       <p className="text-sm text-muted-foreground">
         Halaman dimuat: {date(new Date().toISOString())}. Waktu ini berbeda dari
         waktu observasi dan sinkronisasi.

@@ -11,6 +11,7 @@ import Link from "next/link";
 import { requireAccountAccess } from "@/features/auth/session";
 import { FiltersForm, ModeBanner, StateBadge } from "./browse-view";
 import { browse } from "./data";
+import { DataWarnings } from "./data-warning";
 import {
   date,
   type Filters,
@@ -20,6 +21,7 @@ import {
   statuses,
 } from "./domain";
 import { IncidentMap } from "./map-loader";
+import { observationMapPoint } from "./observation-map-point";
 import { ingestionReadiness } from "./readiness";
 
 export async function DashboardView({ f }: { f: Filters }) {
@@ -40,16 +42,7 @@ export async function DashboardView({ f }: { f: Filters }) {
   const observations = data?.observations ?? [];
   const incidents = data?.incidents ?? [];
   const points = [
-    ...observations.map((o) => ({
-      id: o.id,
-      latitude: o.latitude,
-      longitude: o.longitude,
-      title: `Observasi ${o.instrument}`,
-      detail: `${date(o.detected_at)} · ${o.source} · Keyakinan ${o.confidence_raw ?? "tidak tersedia"} (${o.confidence_kind ?? "tidak tersedia"}) · Belum menjadi konfirmasi kebakaran`,
-      href: `/incidents/new?observation=${o.id}`,
-      kind: "observation",
-      priority: "unassessed",
-    })),
+    ...observations.map(observationMapPoint),
     ...incidents.map((i) => ({
       id: i.id,
       latitude: i.latitude,
@@ -95,6 +88,7 @@ export async function DashboardView({ f }: { f: Filters }) {
         )}
       </header>
       <ModeBanner mode={f.mode} compact />
+      <DataWarnings warnings={data?.warnings ?? []} />
       <form
         action="/dashboard"
         className="grid gap-3 rounded-xl border bg-card p-3 sm:grid-cols-2 xl:grid-cols-[1fr_1.25fr_1fr_1fr_1fr_auto]"
@@ -214,6 +208,47 @@ export async function DashboardView({ f }: { f: Filters }) {
                 titik dimuat
               </span>
             </div>
+            {!points.length && !unavailable && (
+              <div className="space-y-2 border-b bg-muted/40 px-4 py-3 text-sm">
+                <p className="font-semibold">
+                  {!access.districts.length
+                    ? "Titik belum ditampilkan: akun belum memiliki izin wilayah"
+                    : f.mode === "live" && !latestSync
+                      ? "Belum ada hasil sinkronisasi LIVE untuk ditampilkan"
+                      : "Tidak ada titik yang cocok dengan filter dan izin wilayah ini"}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {!access.districts.length
+                    ? "Operator perlu menyiapkan katalog batas wilayah, lalu administrator memberikan akses kabupaten/kota ke akun Anda. Migrasi saja belum mengisi observasi NASA."
+                    : f.mode === "live" && !latestSync
+                      ? "Operator perlu melengkapi konfigurasi NASA, menjalankan sinkronisasi, dan memeriksa kecocokan wilayah. Peta kosong bukan bukti bahwa tidak ada titik panas."
+                      : "Periksa mode LIVE/DEMO, rentang waktu, sumber, dan filter insiden. Peta hanya menampilkan halaman data yang sedang dimuat."}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Posisi Anda tidak membatasi titik ke lokasi Anda. Peta tetap
+                  berfokus pada Kalimantan Barat.
+                </p>
+                {access.profile.role === "admin" && (
+                  <div className="flex flex-wrap gap-4">
+                    <Link
+                      href={`/admin/settings?mode=${f.mode}`}
+                      className="inline-block py-1 text-xs"
+                    >
+                      Lihat kesiapan data dan sinkronisasi
+                    </Link>
+                    {f.mode === "live" && (
+                      <Link
+                        href="/admin/observations"
+                        prefetch={false}
+                        className="inline-block py-1 text-xs font-semibold"
+                      >
+                        Lihat titik NASA nyata · pratinjau sumber
+                      </Link>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
             <IncidentMap
               points={points}
               boundaries={data?.boundaries}
@@ -223,16 +258,22 @@ export async function DashboardView({ f }: { f: Filters }) {
             <div className="flex flex-wrap gap-x-5 gap-y-2 border-t px-4 py-3 text-xs">
               <span>
                 <span className="mr-1 inline-block size-2.5 rounded-full bg-orange-700" />
-                Observasi satelit
+                Observasi satelit · belum dinilai
               </span>
               <span>
                 <span className="mr-1 inline-block size-2.5 rounded-full bg-slate-600" />
-                Insiden · klik untuk detail
+                Insiden / observasi terkait · klik untuk detail
               </span>
               <span className="text-muted-foreground">
                 Batas wilayah: hanya sumber yang tercatat · zona risiko belum
                 disetujui
               </span>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 border-t px-4 py-3 text-xs">
+              <span>Prioritas manual insiden:</span>
+              {priorities.map((priority) => (
+                <StateBadge key={priority} value={priority} />
+              ))}
             </div>
           </section>
         )}

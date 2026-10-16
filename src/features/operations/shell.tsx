@@ -84,6 +84,14 @@ export function Shell({
                 <ShieldCheck aria-hidden className="size-4" />
                 Audit perubahan
               </Link>
+              <Link
+                href="/admin/observations"
+                prefetch={false}
+                className="gap-2 rounded-md px-3 py-2 text-sm no-underline hover:bg-muted"
+              >
+                <MapPinned aria-hidden className="size-4" />
+                Pratinjau NASA
+              </Link>
             </>
           )}
         </nav>

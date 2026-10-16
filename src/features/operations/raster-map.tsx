@@ -3,7 +3,8 @@ import { LocateFixed, Minus, Plus } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import type { DistrictBoundaries } from "./domain";
-import type { MapPoint } from "./map";
+import type { MapInteractionProps, MapPoint } from "./map";
+import { connectionCoordinates, distanceLabel } from "./map-geometry";
 
 function project(longitude: number, latitude: number, zoom: number) {
   const size = 256 * 2 ** zoom;
@@ -32,12 +33,15 @@ export default function RasterMap({
   boundaries,
   districtUrl,
   overview = false,
+  location,
+  selectedPoint: selected,
+  onSelectPoint,
 }: {
   points: MapPoint[];
   boundaries?: DistrictBoundaries;
   districtUrl?: string;
   overview?: boolean;
-}) {
+} & MapInteractionProps) {
   const root = useRef<HTMLDivElement>(null);
   const initial =
     !overview && points.length === 1
@@ -49,7 +53,6 @@ export default function RasterMap({
       : { longitude: 110.3, latitude: -0.15, zoom: 7 };
   const [position, setPosition] = useState(initial);
   const [size, setSize] = useState({ width: 800, height: 560 });
-  const [selected, setSelected] = useState<MapPoint | null>(null);
   const [tileError, setTileError] = useState(false);
   const drag = useRef<{
     x: number;
@@ -68,9 +71,66 @@ export default function RasterMap({
     observer.observe(root.current);
     return () => observer.disconnect();
   }, []);
+  const anchorLongitude = initial.longitude;
+  const anchorLatitude = initial.latitude;
+  useEffect(() => {
+    if (!location) return;
+    const endpoints = connectionCoordinates(
+      location,
+      selected ?? { longitude: anchorLongitude, latitude: anchorLatitude },
+    );
+    const from = project(endpoints[0][0], endpoints[0][1], 0);
+    const to = project(endpoints[1][0], endpoints[1][1], 0);
+    const zoom = Math.max(
+      1,
+      Math.min(
+        11,
+        Math.floor(
+          Math.min(
+            Math.log2(
+              Math.max(64, size.width - 110) /
+                Math.max(0.01, Math.abs(to.x - from.x)),
+            ),
+            Math.log2(
+              Math.max(64, size.height - 170) /
+                Math.max(0.01, Math.abs(to.y - from.y)),
+            ),
+          ),
+        ),
+      ),
+    );
+    setPosition({
+      ...unproject((from.x + to.x) / 2, (from.y + to.y) / 2, 0),
+      zoom,
+    });
+  }, [
+    location,
+    selected,
+    anchorLongitude,
+    anchorLatitude,
+    size.width,
+    size.height,
+  ]);
   const center = project(position.longitude, position.latitude, position.zoom);
   const left = center.x - size.width / 2;
   const top = center.y - size.height / 2;
+  const toScreen = (longitude: number, latitude: number) => {
+    const pixel = project(longitude, latitude, position.zoom);
+    const worldSize = 256 * 2 ** position.zoom;
+    return {
+      x:
+        pixel.x +
+        Math.round((center.x - pixel.x) / worldSize) * worldSize -
+        left,
+      y: pixel.y - top,
+    };
+  };
+  const userPixel = location
+    ? toScreen(location.longitude, location.latitude)
+    : null;
+  const targetPixel = selected
+    ? toScreen(selected.longitude, selected.latitude)
+    : null;
   const tiles = [];
   const count = 2 ** position.zoom;
   for (
@@ -89,7 +149,7 @@ export default function RasterMap({
   const zoomBy = (delta: number) =>
     setPosition((p) => ({
       ...p,
-      zoom: Math.max(3, Math.min(16, p.zoom + delta)),
+      zoom: Math.max(1, Math.min(16, p.zoom + delta)),
     }));
   const moveBy = (x: number, y: number) => {
     setPosition((p) => {
@@ -115,7 +175,6 @@ export default function RasterMap({
             centerX: center.x,
             centerY: center.y,
           };
-          setSelected(null);
         }}
         onPointerMove={(e) => {
           const start = drag.current;
@@ -213,18 +272,66 @@ export default function RasterMap({
           })}
         </svg>
       ) : null}
+      {userPixel && targetPixel && (
+        <svg
+          aria-hidden="true"
+          width={size.width}
+          height={size.height}
+          className="pointer-events-none absolute inset-0 z-[5]"
+        >
+          <line
+            x1={userPixel.x}
+            y1={userPixel.y}
+            x2={targetPixel.x}
+            y2={targetPixel.y}
+            stroke="white"
+            strokeWidth={7}
+          />
+          <line
+            x1={userPixel.x}
+            y1={userPixel.y}
+            x2={targetPixel.x}
+            y2={targetPixel.y}
+            stroke="#1d4ed8"
+            strokeWidth={3}
+            strokeDasharray="9 6"
+          />
+          <circle
+            cx={targetPixel.x}
+            cy={targetPixel.y}
+            r={15}
+            fill="rgba(29,78,216,0.15)"
+            stroke="#1d4ed8"
+            strokeWidth={3}
+          />
+        </svg>
+      )}
+      {userPixel && location && (
+        <div
+          role="img"
+          aria-label={
+            location.source === "browser" ? "Posisi Anda" : "Acuan manual"
+          }
+          className="pointer-events-none absolute z-[15] -translate-x-1/2 -translate-y-1/2"
+          style={{ left: userPixel.x, top: userPixel.y }}
+        >
+          <span className="block size-6 rounded-full border-[3px] border-white bg-blue-700 shadow-lg" />
+          <span className="absolute left-1/2 top-7 -translate-x-1/2 whitespace-nowrap rounded border border-blue-200 bg-white px-2 py-1 text-xs font-semibold text-blue-950 shadow-sm">
+            {location.source === "browser" ? "Posisi Anda" : "Acuan manual"}
+          </span>
+        </div>
+      )}
       {points.map((p) => {
-        const pixel = project(p.longitude, p.latitude, position.zoom);
-        const x = pixel.x - left,
-          y = pixel.y - top;
+        const { x, y } = toScreen(p.longitude, p.latitude);
         if (x < 0 || y < 0 || x > size.width || y > size.height) return null;
         return (
           <button
             type="button"
             key={p.id}
-            onClick={() => setSelected(p)}
+            onClick={() => onSelectPoint(p)}
+            aria-pressed={selected?.id === p.id}
             aria-label={`${p.title}: ${p.detail}`}
-            className={`absolute z-10 size-6 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow-md ${p.kind === "observation" ? "bg-orange-700" : p.priority === "critical" ? "bg-red-700" : p.priority === "high" ? "bg-orange-700" : "bg-slate-600"}`}
+            className={`absolute z-10 size-6 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow-md ${p.kind === "observation" ? "bg-orange-700" : p.priority === "critical" ? "bg-red-700" : p.priority === "high" ? "bg-orange-700" : p.priority === "medium" ? "bg-yellow-700" : p.priority === "low" ? "bg-sky-700" : "bg-slate-600"}`}
             style={{ left: x, top: y }}
           />
         );
@@ -242,7 +349,7 @@ export default function RasterMap({
         <button
           type="button"
           onClick={() => zoomBy(-1)}
-          disabled={position.zoom === 3}
+          disabled={position.zoom === 1}
           aria-label="Perkecil peta"
           className="flex size-10 items-center justify-center rounded hover:bg-muted disabled:opacity-40"
         >
@@ -284,16 +391,23 @@ export default function RasterMap({
             <button
               type="button"
               aria-label="Tutup detail marker"
-              onClick={() => setSelected(null)}
+              onClick={() => onSelectPoint(null)}
               className="min-h-6 min-w-6"
             >
               ×
             </button>
           </div>
           <p className="text-xs">{selected.detail}</p>
-          <Link href={selected.href} className="text-sm">
-            Buka detail
-          </Link>
+          {location && (
+            <p className="text-sm font-semibold text-blue-800">
+              Perkiraan jarak lurus: {distanceLabel(location, selected)}
+            </p>
+          )}
+          {selected.href && (
+            <Link href={selected.href} className="text-sm">
+              Buka detail
+            </Link>
+          )}
         </div>
       )}
       {tileError && (

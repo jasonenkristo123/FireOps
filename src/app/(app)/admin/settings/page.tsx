@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { requireAccountAccess } from "@/features/auth/session";
 import { ModeBanner } from "@/features/operations/browse-view";
+import { dataWarning, logDataFailure } from "@/features/operations/data-errors";
+import { DataWarnings } from "@/features/operations/data-warning";
 import { date, type Search } from "@/features/operations/domain";
 import { bboxSchema, sourceSchema } from "@/features/operations/firms";
 import { summaryConfiguration } from "@/features/operations/report-summary-service";
@@ -19,8 +21,8 @@ export default async function Page({ searchParams }: { searchParams: Search }) {
       .select("id,name,source,license,boundary_version,approved_at")
       .eq("data_mode", mode),
   ]);
-  if (runs.error || districts.error)
-    throw new Error("Kesehatan sistem gagal dimuat.");
+  if (districts.error) throw new Error("Kesehatan sistem gagal dimuat.");
+  if (runs.error) logDataFailure("ingestion_status", runs.error);
   const checks = [
     ["Identitas ingestion server", Boolean(process.env.SUPABASE_SECRET_KEY)],
     ["Kunci NASA server", Boolean(process.env.NASA_FIRMS_MAP_KEY)],
@@ -41,6 +43,9 @@ export default async function Page({ searchParams }: { searchParams: Search }) {
     <>
       <h1 className="text-2xl font-bold">Kesehatan sistem & konfigurasi</h1>
       <ModeBanner mode={mode} />
+      <DataWarnings
+        warnings={runs.error ? [dataWarning("health", runs.error)] : []}
+      />
       <nav aria-label="Mode kesehatan sistem" className="flex gap-5">
         <Link href="?mode=demo">DEMO / Simulasi</Link>
         <Link href="?mode=live">LIVE</Link>
@@ -103,7 +108,7 @@ export default async function Page({ searchParams }: { searchParams: Search }) {
           tanpa kecocokan wilayah tunggal tetap disimpan tanpa penetapan
           wilayah.
         </p>
-        {runs.data.length ? (
+        {runs.data?.length ? (
           <div className="overflow-x-auto">
             <table>
               <thead>
@@ -136,6 +141,11 @@ export default async function Page({ searchParams }: { searchParams: Search }) {
               </tbody>
             </table>
           </div>
+        ) : runs.error ? (
+          <p>
+            Rincian sinkronisasi belum dapat dimuat. Selesaikan pembaruan
+            database sebelum menilai kesehatan sumber dari halaman ini.
+          </p>
         ) : (
           <p>
             Belum ada sinkronisasi. Tidak ada waktu keberhasilan yang
